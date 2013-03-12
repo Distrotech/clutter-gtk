@@ -31,6 +31,10 @@
 #include <gdk/gdkwin32.h>
 #endif
 
+#if defined(CLUTTER_WINDOWING_WAYLAND)
+#include <gdk/gdkwayland.h>
+#endif
+
 /**
  * SECTION:gtk-clutter-util
  * @Title: Utility Functions
@@ -93,6 +97,15 @@ post_parse_hook (GOptionContext  *context,
     {
       /* let GTK+ be in charge of the event handling */
       clutter_win32_disable_event_retrieval ();
+    }
+  else
+#endif
+#if defined(GDK_WINDOWING_WAYLAND) && defined(CLUTTER_WINDOWING_WAYLAND)
+  if (clutter_check_windowing_backend (CLUTTER_WINDOWING_WAYLAND) &&
+      GDK_IS_WAYLAND_DISPLAY (display))
+    {
+      /* let GTK+ be in charge of the event handling */
+      /* FIXME: disable event retrieval */
     }
   else
 #endif
@@ -200,6 +213,14 @@ gtk_clutter_init (int    *argc,
 #if defined(CLUTTER_WINDOWING_WIN32)
   if (clutter_check_windowing_backend (CLUTTER_WINDOWING_WIN32))
     clutter_win32_disable_event_retrieval ();
+#endif
+
+#if defined(GDK_WINDOWING_WAYLAND) && defined(CLUTTER_WINDOWING_WAYLAND)
+  if (clutter_check_windowing_backend (CLUTTER_WINDOWING_WAYLAND))
+    {
+      /* let GTK+ be in charge of the event handling */
+      /* FIXME: disable event retrieval */
+    }
 #endif
 
   /* We disable clutter accessibility support in order to not
