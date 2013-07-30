@@ -21,7 +21,8 @@ AM_CFLAGS = $(MAINTAINER_CFLAGS) $(CLUTTER_GTK_DEPS_CFLAGS)
 
 lib_LTLIBRARIES = libclutter-gtk-@CLUTTER_GTK_API_VERSION@.la
 
-source_c = \
+source_c = $(srcdir)/subsurface-protocol.c $(srcdir)/subsurface-client-protocol.h
+source_c += \
 	$(srcdir)/gtk-clutter-actor.c 		\
 	$(srcdir)/gtk-clutter-embed.c 		\
 	$(srcdir)/gtk-clutter-offscreen.c	\
@@ -60,6 +61,9 @@ cluttergtkheaders_HEADERS = \
 	$(NULL)
 
 EXTRA_DIST += gtk-clutter-version.h.in
+
+
+@wayland_scanner_rules@
 
 -include $(INTROSPECTION_MAKEFILE)
 

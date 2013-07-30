@@ -202,6 +202,18 @@ GTK_DOC_CHECK([1.14], [--flavour=no-tmpl])
 
 GOBJECT_INTROSPECTION_CHECK([0.9.12])
 
+AC_ARG_ENABLE([wayland],
+              [AC_HELP_STRING([--enable-wayland],
+                              [Enable wayland support])],
+              [],
+              [enable_wayland=yes])
+
+AS_IF([test "x$enable_wayland" = "xyes"],
+      [PKG_CHECK_MODULES(WAYLAND, [wayland-client gtk+-wayland-3.0 clutter-wayland-1.0])],
+      [])
+
+WAYLAND_SCANNER_RULES(['$(top_srcdir)/protocol'])
+
 AC_CONFIG_FILES([
         Makefile
         build/Makefile

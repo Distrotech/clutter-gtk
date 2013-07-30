@@ -66,12 +66,24 @@
 #include <clutter/win32/clutter-win32.h>
 #endif
 
+#if defined(CLUTTER_WINDOWING_WAYLAND)
+#include <clutter/wayland/clutter-wayland.h>
+#endif
+
 #if defined(GDK_WINDOWING_X11)
 #include <gdk/gdkx.h>
 #endif
 
 #if defined(GDK_WINDOWING_WIN32)
 #include <gdk/gdkwin32.h>
+#endif
+
+#if defined(GDK_WINDOWING_WAYLAND)
+#include <gdk/gdkwayland.h>
+#endif
+
+#if defined(GDK_WINDOWING_WAYLAND) && defined(CLUTTER_WINDOWING_WAYLAND)
+#include "subsurface-client-protocol.h"
 #endif
 
 G_DEFINE_TYPE (GtkClutterEmbed, gtk_clutter_embed, GTK_TYPE_CONTAINER);
@@ -92,6 +104,10 @@ struct _GtkClutterEmbedPrivate
 
   guint geometry_changed : 1;
   guint use_layout_size : 1;
+
+#if defined(GDK_WINDOWING_WAYLAND) && defined(CLUTTER_WINDOWING_WAYLAND)
+  struct wl_subcompositor *subcompositor;
+#endif
 };
 
 enum
@@ -360,6 +376,26 @@ gtk_clutter_embed_realize (GtkWidget *widget)
       if (num_filter == 0)
         gdk_window_add_filter (NULL, gtk_clutter_filter_func, widget);
       num_filter++;
+    }
+#endif
+
+#if defined(GDK_WINDOWING_WAYLAND) && defined(CLUTTER_WINDOWING_WAYLAND)
+  if (priv->subcompositor)
+    {
+      GdkDisplay *display;
+      struct wl_subsurface *subsurface;
+      struct wl_surface *clutter_surface, *gtk_surface;
+      struct wl_compositor *compositor;
+
+      display = gdk_display_get_default ();
+      compositor = gdk_wayland_display_get_wl_compositor (display);
+      clutter_surface = wl_compositor_create_surface (compositor);
+      gtk_surface = gdk_wayland_window_get_wl_surface (gdk_window_get_toplevel(window));
+      clutter_wayland_stage_set_wl_surface (CLUTTER_STAGE (priv->stage),
+                                            clutter_surface);
+      subsurface = wl_subcompositor_get_subsurface (priv->subcompositor,
+                                                    clutter_surface,
+                                                    gtk_surface);
     }
 #endif
 
@@ -938,6 +974,40 @@ gtk_clutter_embed_class_init (GtkClutterEmbedClass *klass)
   g_object_class_install_property (gobject_class, PROP_USE_LAYOUT_SIZE, pspec);
 }
 
+
+
+#if defined(GDK_WINDOWING_WAYLAND) && defined(CLUTTER_WINDOWING_WAYLAND)
+static void
+registry_handle_global (void *data,
+                        struct wl_registry *registry,
+                        uint32_t name,
+                        const char *interface,
+                        uint32_t version)
+{
+  GtkClutterEmbed *embed = data;
+  GtkClutterEmbedPrivate *priv = embed->priv;
+
+  if (strcmp (interface, "wl_subcompositor") == 0) {
+    priv->subcompositor = wl_registry_bind (registry,
+                                            name,
+                                            &wl_subcompositor_interface,
+                                            1);
+  }
+}
+
+static void
+registry_handle_global_remove (void *data,
+                               struct wl_registry *registry,
+                               uint32_t name)
+{
+}
+
+static const struct wl_registry_listener registry_listener = {
+  registry_handle_global,
+  registry_handle_global_remove
+};
+#endif
+
 static void
 gtk_clutter_embed_init (GtkClutterEmbed *embed)
 {
@@ -986,6 +1056,25 @@ gtk_clutter_embed_init (GtkClutterEmbed *embed)
     g_signal_connect (priv->stage,
                       "queue-relayout", G_CALLBACK (on_stage_queue_relayout),
                       embed);
+
+
+#if defined(GDK_WINDOWING_WAYLAND) && defined(CLUTTER_WINDOWING_WAYLAND)
+  {
+    GdkDisplay *gdk_display = gdk_display_get_default ();
+    if (clutter_check_windowing_backend (CLUTTER_WINDOWING_WAYLAND) &&
+        GDK_IS_WAYLAND_DISPLAY (gdk_display))
+    {
+      struct wl_display *display;
+      struct wl_registry *registry;
+
+      display = gdk_wayland_display_get_wl_display (gdk_display);
+      registry = wl_display_get_registry (display);
+      wl_registry_add_listener (registry, &registry_listener, embed);
+
+      wl_display_roundtrip (display);
+    }
+  }
+#endif
 }
 
 /**

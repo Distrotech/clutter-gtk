@@ -105,7 +105,8 @@ post_parse_hook (GOptionContext  *context,
       GDK_IS_WAYLAND_DISPLAY (display))
     {
       /* let GTK+ be in charge of the event handling */
-      /* FIXME: disable event retrieval */
+      clutter_wayland_disable_event_retrieval ();
+      clutter_wayland_set_display (gdk_wayland_display_get_wl_display (display));
     }
   else
 #endif
