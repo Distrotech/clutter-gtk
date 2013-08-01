@@ -396,6 +396,7 @@ gtk_clutter_embed_realize (GtkWidget *widget)
       subsurface = wl_subcompositor_get_subsurface (priv->subcompositor,
                                                     clutter_surface,
                                                     gtk_surface);
+      wl_subsurface_set_position(subsurface, allocation.x, allocation.y);
     }
 #endif
 
